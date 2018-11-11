@@ -1,7 +1,10 @@
 all: build
 
-build:
+build: get
 	go build -o server .
+
+get:
+	go get ./...
 
 vet:
 	go vet ./...

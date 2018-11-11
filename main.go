@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"net/http"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
@@ -21,7 +23,9 @@ func logRequest(handler http.Handler) http.Handler {
 }
 
 func main() {
+	// router handlers
 	http.HandleFunc("/ping", ping)
+	http.Handle("/metrics", promhttp.Handler())
 
 	log.Println("Waiting for requests on ", addr)
 	log.Fatal(http.ListenAndServe(addr, logRequest(http.DefaultServeMux)))
