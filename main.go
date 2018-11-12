@@ -8,7 +8,8 @@ import (
 )
 
 const (
-	addr = ":8080"
+	addr    = ":8080"
+	dataDir = "./data"
 )
 
 func ping(w http.ResponseWriter, _ *http.Request) {
@@ -25,6 +26,7 @@ func logRequest(handler http.Handler) http.Handler {
 func main() {
 	// router handlers
 	http.HandleFunc("/ping", ping)
+	http.Handle("/files/", http.StripPrefix("/files/", http.FileServer(http.Dir(dataDir))))
 	http.Handle("/metrics", promhttp.Handler())
 
 	log.Println("Waiting for requests on ", addr)
