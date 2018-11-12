@@ -46,3 +46,21 @@ spec:
       name: http
   selector:
     app: myservice
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  labels:
+    app: myservice
+  name: myservice
+spec:
+  rules:
+  - host: myservice.arp4.net
+    http:
+      paths:
+      - backend:
+          serviceName: myservice
+          servicePort: 8080
+        path: /
