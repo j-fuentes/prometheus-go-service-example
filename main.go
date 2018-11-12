@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -21,7 +23,18 @@ func logRequest(handler http.Handler) http.Handler {
 }
 
 // handlers
-func ping(w http.ResponseWriter, _ *http.Request) {
+func ping(w http.ResponseWriter, r *http.Request) {
+	s := r.URL.Query().Get("sleep")
+	if s != "" {
+		i, err := strconv.Atoi(s)
+		if err != nil {
+			w.WriteHeader(400)
+			w.Write([]byte("only integers allowed with 'sleep'"))
+			return
+		}
+
+		time.Sleep(time.Duration(i) * time.Millisecond)
+	}
 	w.Write([]byte("pong\n"))
 }
 
