@@ -24,15 +24,18 @@ func logRequest(handler http.Handler) http.Handler {
 	})
 }
 
+func handleError(status int, msg string, w http.ResponseWriter) error {
+	w.WriteHeader(status)
+	w.Write([]byte(msg))
+	return fmt.Errorf(msg)
+}
+
 func goToSleepIfNeeded(w http.ResponseWriter, r *http.Request) error {
 	s := r.URL.Query().Get("sleep")
 	if s != "" {
 		i, err := strconv.Atoi(s)
 		if err != nil {
-			msg := "only integers allowed with 'sleep'"
-			w.WriteHeader(400)
-			w.Write([]byte(msg))
-			return fmt.Errorf(msg)
+			return handleError(400, "only integers allowed with 'sleep'", w)
 		}
 
 		time.Sleep(time.Duration(i) * time.Millisecond)
@@ -47,10 +50,7 @@ func forceStatusIfNeeded(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return err
 		}
-		msg := fmt.Sprintf("status forced to %d\n", i)
-		w.WriteHeader(i)
-		w.Write([]byte(msg))
-		return fmt.Errorf(msg)
+		return handleError(i, fmt.Sprintf("status forced to %d\n", i), w)
 	}
 	return nil
 }
@@ -74,22 +74,22 @@ func ping(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	// custom metrics
-	inFlightGauge := prometheus.NewGauge(prometheus.GaugeOpts{
+	inFlightReqGauge := prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: promNamespace,
 		Name:      "api_in_flight_requests",
 		Help:      "A gauge of requests currently being served by the wrapped handler.",
 	})
 
-	counter := prometheus.NewCounterVec(
+	reqCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: promNamespace,
 			Name:      "api_requests_total",
-			Help:      "A counter for requests to the wrapped handler.",
+			Help:      "A counter for requests.",
 		},
 		[]string{"code", "method"},
 	)
 
-	duration := prometheus.NewHistogramVec(
+	reqDuration := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: promNamespace,
 			Name:      "api_requests_duration_seconds",
@@ -99,16 +99,16 @@ func main() {
 		[]string{"code", "method"},
 	)
 
-	prometheus.MustRegister(inFlightGauge, counter, duration)
+	prometheus.MustRegister(inFlightReqGauge, reqCounter, reqDuration)
 
 	// instrumentation chains
 	instrumentHandler := func(handler http.Handler) http.Handler {
 		return promhttp.InstrumentHandlerInFlight(
-			inFlightGauge,
+			inFlightReqGauge,
 			promhttp.InstrumentHandlerDuration(
-				duration,
+				reqDuration,
 				promhttp.InstrumentHandlerCounter(
-					counter,
+					reqCounter,
 					handler,
 				),
 			),
@@ -116,7 +116,7 @@ func main() {
 	}
 
 	// router handlers
-	http.Handle("/", instrumentHandler(http.HandlerFunc(empty)))
+	http.Handle("/", http.HandlerFunc(empty))
 	http.Handle("/ping", instrumentHandler(http.HandlerFunc(ping)))
 	http.Handle("/files/", instrumentHandler(http.StripPrefix("/files/", http.FileServer(http.Dir(dataDir)))))
 	http.Handle("/metrics", promhttp.Handler())
