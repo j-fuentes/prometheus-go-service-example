@@ -55,6 +55,10 @@ func forceStatusIfNeeded(w http.ResponseWriter, r *http.Request) error {
 }
 
 // handlers
+func empty(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte{})
+}
+
 func ping(w http.ResponseWriter, r *http.Request) {
 	if err := goToSleepIfNeeded(w, r); err != nil {
 		return
@@ -106,6 +110,7 @@ func main() {
 	)
 
 	// router handlers
+	http.Handle("/", http.HandlerFunc(empty))
 	http.Handle("/ping", pingChain)
 	http.Handle("/files/", http.StripPrefix("/files/", http.FileServer(http.Dir(dataDir))))
 	http.Handle("/metrics", promhttp.Handler())
