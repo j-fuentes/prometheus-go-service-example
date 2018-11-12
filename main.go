@@ -40,14 +40,26 @@ func main() {
 		[]string{"code", "method"},
 	)
 
-	prometheus.MustRegister(inFlightGauge, counter)
+	duration := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "api_requests_duration_seconds",
+			Help:    "A histogram of latencies",
+			Buckets: []float64{.25, .5, 1, 2.5, 5, 10},
+		},
+		[]string{"code", "method"},
+	)
+
+	prometheus.MustRegister(inFlightGauge, counter, duration)
 
 	// instrumentation chains
 	pingChain := promhttp.InstrumentHandlerInFlight(
 		inFlightGauge,
-		promhttp.InstrumentHandlerCounter(
-			counter,
-			http.HandlerFunc(ping),
+		promhttp.InstrumentHandlerDuration(
+			duration,
+			promhttp.InstrumentHandlerCounter(
+				counter,
+				http.HandlerFunc(ping),
+			),
 		),
 	)
 
