@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -12,10 +13,6 @@ const (
 	dataDir = "./data"
 )
 
-func ping(w http.ResponseWriter, _ *http.Request) {
-	w.Write([]byte("pong\n"))
-}
-
 func logRequest(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[%s] %s %s\n", r.RemoteAddr, r.Method, r.URL)
@@ -23,9 +20,39 @@ func logRequest(handler http.Handler) http.Handler {
 	})
 }
 
+// handlers
+func ping(w http.ResponseWriter, _ *http.Request) {
+	w.Write([]byte("pong\n"))
+}
+
 func main() {
+	// custom metrics
+	inFlightGauge := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "api_in_flight_requests",
+		Help: "A gauge of requests currently being served by the wrapped handler.",
+	})
+
+	counter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "api_requests_total",
+			Help: "A counter for requests to the wrapped handler.",
+		},
+		[]string{"code", "method"},
+	)
+
+	prometheus.MustRegister(inFlightGauge, counter)
+
+	// instrumentation chains
+	pingChain := promhttp.InstrumentHandlerInFlight(
+		inFlightGauge,
+		promhttp.InstrumentHandlerCounter(
+			counter,
+			http.HandlerFunc(ping),
+		),
+	)
+
 	// router handlers
-	http.HandleFunc("/ping", ping)
+	http.Handle("/ping", pingChain)
 	http.Handle("/files/", http.StripPrefix("/files/", http.FileServer(http.Dir(dataDir))))
 	http.Handle("/metrics", promhttp.Handler())
 
