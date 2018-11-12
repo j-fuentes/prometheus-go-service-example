@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	addr    = ":8080"
-	dataDir = "./data"
+	addr          = ":8080"
+	dataDir       = "./data"
+	promNamespace = "myservice"
 )
 
 func logRequest(handler http.Handler) http.Handler {
@@ -74,23 +75,26 @@ func ping(w http.ResponseWriter, r *http.Request) {
 func main() {
 	// custom metrics
 	inFlightGauge := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "api_in_flight_requests",
-		Help: "A gauge of requests currently being served by the wrapped handler.",
+		Namespace: promNamespace,
+		Name:      "api_in_flight_requests",
+		Help:      "A gauge of requests currently being served by the wrapped handler.",
 	})
 
 	counter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "api_requests_total",
-			Help: "A counter for requests to the wrapped handler.",
+			Namespace: promNamespace,
+			Name:      "api_requests_total",
+			Help:      "A counter for requests to the wrapped handler.",
 		},
 		[]string{"code", "method"},
 	)
 
 	duration := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "api_requests_duration_seconds",
-			Help:    "A histogram of latencies",
-			Buckets: []float64{.25, .5, 1, 2.5, 5, 10},
+			Namespace: promNamespace,
+			Name:      "api_requests_duration_seconds",
+			Help:      "A histogram of latencies",
+			Buckets:   []float64{.25, .5, 1, 2.5, 5, 10},
 		},
 		[]string{"code", "method"},
 	)
@@ -98,21 +102,23 @@ func main() {
 	prometheus.MustRegister(inFlightGauge, counter, duration)
 
 	// instrumentation chains
-	pingChain := promhttp.InstrumentHandlerInFlight(
-		inFlightGauge,
-		promhttp.InstrumentHandlerDuration(
-			duration,
-			promhttp.InstrumentHandlerCounter(
-				counter,
-				http.HandlerFunc(ping),
+	instrumentHandler := func(handler http.Handler) http.Handler {
+		return promhttp.InstrumentHandlerInFlight(
+			inFlightGauge,
+			promhttp.InstrumentHandlerDuration(
+				duration,
+				promhttp.InstrumentHandlerCounter(
+					counter,
+					handler,
+				),
 			),
-		),
-	)
+		)
+	}
 
 	// router handlers
-	http.Handle("/", http.HandlerFunc(empty))
-	http.Handle("/ping", pingChain)
-	http.Handle("/files/", http.StripPrefix("/files/", http.FileServer(http.Dir(dataDir))))
+	http.Handle("/", instrumentHandler(http.HandlerFunc(empty)))
+	http.Handle("/ping", instrumentHandler(http.HandlerFunc(ping)))
+	http.Handle("/files/", instrumentHandler(http.StripPrefix("/files/", http.FileServer(http.Dir(dataDir)))))
 	http.Handle("/metrics", promhttp.Handler())
 
 	log.Println("Waiting for requests on ", addr)
