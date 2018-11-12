@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -22,19 +23,47 @@ func logRequest(handler http.Handler) http.Handler {
 	})
 }
 
-// handlers
-func ping(w http.ResponseWriter, r *http.Request) {
+func goToSleepIfNeeded(w http.ResponseWriter, r *http.Request) error {
 	s := r.URL.Query().Get("sleep")
 	if s != "" {
 		i, err := strconv.Atoi(s)
 		if err != nil {
+			msg := "only integers allowed with 'sleep'"
 			w.WriteHeader(400)
-			w.Write([]byte("only integers allowed with 'sleep'"))
-			return
+			w.Write([]byte(msg))
+			return fmt.Errorf(msg)
 		}
 
 		time.Sleep(time.Duration(i) * time.Millisecond)
 	}
+	return nil
+}
+
+func forceStatusIfNeeded(w http.ResponseWriter, r *http.Request) error {
+	s := r.URL.Query().Get("forceStatus")
+	if s != "" {
+		i, err := strconv.Atoi(s)
+		if err != nil {
+			return err
+		}
+		msg := fmt.Sprintf("status forced to %d\n", i)
+		w.WriteHeader(i)
+		w.Write([]byte(msg))
+		return fmt.Errorf(msg)
+	}
+	return nil
+}
+
+// handlers
+func ping(w http.ResponseWriter, r *http.Request) {
+	if err := goToSleepIfNeeded(w, r); err != nil {
+		return
+	}
+
+	if err := forceStatusIfNeeded(w, r); err != nil {
+		return
+	}
+
 	w.Write([]byte("pong\n"))
 }
 
