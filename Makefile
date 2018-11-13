@@ -17,7 +17,7 @@ lint: vet
 	golint
 
 serve:
-	go run ./main.go
+	go run .
 
 push:
 	docker build -t $(IMAGE_FULL_NAME) .

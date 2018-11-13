@@ -14,6 +14,7 @@ import (
 const (
 	addr          = ":8080"
 	dataDir       = "./data"
+	webDir        = "./web"
 	promNamespace = "myservice"
 )
 
@@ -72,6 +73,10 @@ func ping(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("pong\n"))
 }
 
+func file(w http.ResponseWriter, r *http.Request) {
+
+}
+
 func main() {
 	// custom metrics
 	inFlightReqGauge := prometheus.NewGauge(prometheus.GaugeOpts{
@@ -116,9 +121,10 @@ func main() {
 	}
 
 	// router handlers
-	http.Handle("/", http.HandlerFunc(empty))
+	http.Handle("/", instrumentHandler(http.HandlerFunc(presentQuiz)))
+	http.Handle("/answer", instrumentHandler(http.HandlerFunc(answerQuiz)))
+	http.Handle("/images/", instrumentHandler(http.StripPrefix("/images/", http.FileServer(http.Dir(dataDir)))))
 	http.Handle("/ping", instrumentHandler(http.HandlerFunc(ping)))
-	http.Handle("/files/", instrumentHandler(http.StripPrefix("/files/", http.FileServer(http.Dir(dataDir)))))
 	http.Handle("/metrics", promhttp.Handler())
 
 	log.Println("Waiting for requests on ", addr)
