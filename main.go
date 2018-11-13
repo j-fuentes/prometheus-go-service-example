@@ -78,7 +78,7 @@ func file(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// custom metrics
+	// RED metrics
 	inFlightReqGauge := prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: promNamespace,
 		Name:      "api_in_flight_requests",
@@ -98,13 +98,33 @@ func main() {
 		prometheus.HistogramOpts{
 			Namespace: promNamespace,
 			Name:      "api_requests_duration_seconds",
-			Help:      "A histogram of latencies",
+			Help:      "A histogram of latencies.",
 			Buckets:   []float64{.25, .5, 1, 2.5, 5, 10},
 		},
 		[]string{"code", "method"},
 	)
 
-	prometheus.MustRegister(inFlightReqGauge, reqCounter, reqDuration)
+	// quiz metrics
+	answerCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: promNamespace,
+			Name:      "quiz_answer_event",
+			Help:      "A counter for answers to the quiz.",
+		},
+		[]string{"question", "result"},
+	)
+
+	answerHistogram := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: promNamespace,
+			Name:      "quiz_result",
+			Help:      "A histogram of quiz results.",
+			Buckets:   []float64{0, 1, 2, 3, 4, 5, 6},
+		},
+		[]string{},
+	)
+
+	prometheus.MustRegister(inFlightReqGauge, reqCounter, reqDuration, answerCounter, answerHistogram)
 
 	// instrumentation chains
 	instrumentHandler := func(handler http.Handler) http.Handler {
@@ -122,7 +142,10 @@ func main() {
 
 	// router handlers
 	http.Handle("/", instrumentHandler(http.HandlerFunc(presentQuiz)))
-	http.Handle("/answer", instrumentHandler(http.HandlerFunc(answerQuiz)))
+	http.Handle("/answer", instrumentHandler(answerQuiz(&quizMetrics{
+		answerCounter:   answerCounter,
+		answerHistogram: answerHistogram,
+	})))
 	http.Handle("/images/", instrumentHandler(http.StripPrefix("/images/", http.FileServer(http.Dir(dataDir)))))
 	http.Handle("/ping", instrumentHandler(http.HandlerFunc(ping)))
 	http.Handle("/metrics", promhttp.Handler())
