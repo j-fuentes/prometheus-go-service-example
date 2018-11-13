@@ -1,22 +1,22 @@
 apiVersion: apps/v1beta2
 kind: Deployment
 metadata:
-  name: myservice
+  name: quiz
   labels:
-    app: myservice
+    app: quiz
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: myservice
+      app: quiz
   template:
     metadata:
       labels:
-        app: myservice
+        app: quiz
     spec:
       containers:
         - name: main
-          image: josefuentes/myservice:latest
+          image: josefuentes/quiz:latest
           imagePullPolicy: Always
           ports:
             - name: http
@@ -34,9 +34,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: myservice
+  name: quiz
   labels:
-    app: myservice
+    app: quiz
 spec:
   type: ClusterIP
   ports:
@@ -45,7 +45,7 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app: myservice
+    app: quiz
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
@@ -53,14 +53,14 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: nginx
   labels:
-    app: myservice
-  name: myservice
+    app: quiz
+  name: quiz
 spec:
   rules:
-  - host: myservice.arp4.net
+  - host: quiz.arp4.net
     http:
       paths:
       - backend:
-          serviceName: myservice
+          serviceName: quiz
           servicePort: 8080
         path: /

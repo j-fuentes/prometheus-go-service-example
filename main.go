@@ -15,7 +15,7 @@ const (
 	addr          = ":8080"
 	dataDir       = "./data"
 	webDir        = "./web"
-	promNamespace = "myservice"
+	promNamespace = "quiz"
 )
 
 func logRequest(handler http.Handler) http.Handler {

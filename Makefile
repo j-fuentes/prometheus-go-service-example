@@ -1,4 +1,4 @@
-IMAGE_NAME?=josefuentes/myservice
+IMAGE_NAME?=josefuentes/quiz
 IMAGE_TAG?=latest
 IMAGE_FULL_NAME=$(IMAGE_NAME):$(IMAGE_TAG)
 
