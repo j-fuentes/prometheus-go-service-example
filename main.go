@@ -105,6 +105,15 @@ func main() {
 	)
 
 	// quiz metrics
+	visitCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: promNamespace,
+			Name:      "visit_counter",
+			Help:      "A counter for visits to the quiz.",
+		},
+		[]string{},
+	)
+
 	answerCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: promNamespace,
@@ -124,7 +133,7 @@ func main() {
 		[]string{},
 	)
 
-	prometheus.MustRegister(inFlightReqGauge, reqCounter, reqDuration, answerCounter, answerHistogram)
+	prometheus.MustRegister(inFlightReqGauge, reqCounter, reqDuration, visitCounter, answerCounter, answerHistogram)
 
 	// instrumentation chains
 	instrumentHandler := func(handler http.Handler) http.Handler {
@@ -141,7 +150,9 @@ func main() {
 	}
 
 	// router handlers
-	http.Handle("/", instrumentHandler(http.HandlerFunc(presentQuiz)))
+	http.Handle("/", instrumentHandler(presentQuiz(&quizMetrics{
+		visitCounter: visitCounter,
+	})))
 	http.Handle("/answer", instrumentHandler(answerQuiz(&quizMetrics{
 		answerCounter:   answerCounter,
 		answerHistogram: answerHistogram,

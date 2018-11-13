@@ -90,27 +90,29 @@ func msgForScore(score int, failures []string) string {
 	}
 }
 
-func presentQuiz(w http.ResponseWriter, r *http.Request) {
-	var sections []string
-	for idx, q := range getQuestions() {
-		var options []string
-		for oIdx, q := range q.options {
-			option := fmt.Sprintf(`<option value="%d">%v</option>`, oIdx, q)
-			options = append(options, option)
-		}
-		strings.Join(options, "\n")
+func presentQuiz(metrics *quizMetrics) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		metrics.visitCounter.WithLabelValues().Inc()
+		var sections []string
+		for idx, q := range getQuestions() {
+			var options []string
+			for oIdx, q := range q.options {
+				option := fmt.Sprintf(`<option value="%d">%v</option>`, oIdx, q)
+				options = append(options, option)
+			}
+			strings.Join(options, "\n")
 
-		section := fmt.Sprintf(`
+			section := fmt.Sprintf(`
   <p><b>%d:</b> %v</p>
   <img src="/images/%v" height="300"><br>
   <select name="q%d" form="trivia">
 	%v
   </select>
 `, idx+1, q.question, q.image, idx, options)
-		sections = append(sections, section)
-	}
+			sections = append(sections, section)
+		}
 
-	doc := fmt.Sprintf(`
+		doc := fmt.Sprintf(`
 <!DOCTYPE html>
 <html>
 
@@ -134,7 +136,8 @@ func presentQuiz(w http.ResponseWriter, r *http.Request) {
 </html>
 `, strings.Join(sections, "\n"))
 
-	w.Write([]byte(doc))
+		w.Write([]byte(doc))
+	}
 }
 
 func answerQuiz(metrics *quizMetrics) http.HandlerFunc {

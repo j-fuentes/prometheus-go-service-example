@@ -24,11 +24,11 @@ spec:
               protocol: TCP
           livenessProbe:
             httpGet:
-              path: /
+              path: /ping
               port: http
           readinessProbe:
             httpGet:
-              path: /
+              path: /ping
               port: http
 ---
 apiVersion: v1
