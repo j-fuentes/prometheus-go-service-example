@@ -5,6 +5,7 @@ RUN make
 
 FROM bitnami/minideb
 EXPOSE 8080
-WORKDIR /root/
+WORKDIR /opt/
 COPY --from=0 /go/src/github.com/j-fuentes/prometheus-go-service-example/server .
+ADD ./data /opt/data
 CMD ["./server"]
